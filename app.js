@@ -1,3 +1,6 @@
+
+var store = require('store')
+
 // 1 - Invocamos a Express
 const express = require('express');
 const app = express();
@@ -40,6 +43,9 @@ const connection = require('./database/db');
 	app.get('/register',(req, res)=>{
 		res.render('register');
 	})
+	app.get('/index',(req, res)=>{
+		res.render('index');
+	})
 
 //10 - Método para la REGISTRACIÓN
 app.post('/register', async (req, res)=>{
@@ -52,17 +58,22 @@ app.post('/register', async (req, res)=>{
     connection.query('INSERT INTO user SET ?',{id:id, username:user, birthdate:date, email:email,password:passwordHash}, async (error, results)=>{
         if(error){
             console.log(error);
+			if(error.code = "ER_DUP_ENTRY"){
+				res.status(409);
+				res.send();
+			}else{
+				res.status(500);
+				res.send();
+			}
         }else{            
-			res.render('register', {
-				alert: true,
-				alertTitle: "Registration",
-				alertMessage: "¡Successful Registration!",
-				alertIcon:'success',
-				showConfirmButton: false,
-				timer: 1500,
-				ruta: ''
-			});
-            //res.redirect('/');         
+			
+			res.status(201);
+			req.session.loggedin = true;                
+			req.session.email = email;
+			// req.session.code= 200;
+			console.log(req.session.email);
+			//res.send('inicie sesion codigo:' + req.session.code + req.session.email);
+            res.redirect('/');         
         }
 	});
 })
@@ -77,31 +88,15 @@ app.post('/auth', async (req, res)=> {
 	if (user && pass) {
 		connection.query('SELECT * FROM user WHERE username = ?', [user], async (error, results, fields)=> {
 			if( results.length == 0/*!(await bcrypt.compare(pass, results[0].pass)*/) {    
-				res.render('login', {
-                        alert: true,
-                        alertTitle: "Error",
-                        alertMessage: "USUARIO y/o PASSWORD incorrectas",
-                        alertIcon:'error',
-                        showConfirmButton: true,
-                        timer: false,
-                        ruta: 'login'    
-                    });
+				res.status(404);
 				
-				//Mensaje simple y poco vistoso
-                //res.send('Incorrect Username and/or Password!');				
 			} else {         
 				//creamos una var de session y le asignamos true si INICIO SESSION       
 				req.session.loggedin = true;                
-				req.session.username = results[0].username;
-				res.render('login', {
-					alert: true,
-					alertTitle: "Conexión exitosa",
-					alertMessage: "¡LOGIN CORRECTO!",
-					alertIcon:'success',
-					showConfirmButton: false,
-					timer: 1500,
-					ruta: ''
-				});        			
+				req.session.email = user;
+				res.status(200);
+				console.log("logeado");
+				res.redirect('/'); 
 			}			
 			res.end();
 		});
@@ -116,8 +111,11 @@ app.get('/', (req, res)=> {
 	if (req.session.loggedin) {
 		res.render('index',{
 			login: true,
-			name: req.session.username			
-		});		
+			email: req.session.email,
+
+		},console.log(req.session.email)
+		);		
+			
 	} else {
 		res.render('index',{
 			login:false,

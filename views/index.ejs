@@ -11,15 +11,11 @@
     </style>
   </head>
   <body class="text-center">         
-          <div class="contenedor">
-            <h1>Página de Inicio</h1>
-            <% if (login) { %>                
-                <h1>Usuario conectado: <strong><%= name %></strong></h1>                        
-                <a href="logout" class="a-logout">Logout</a>
-            <%} else { %>
-                <h1><strong><%= name %></strong></h1>   
-                <a href="login" class="a-login">Ir a Login</a>
-            <% } %>
-          </div>
+                 
+      <h1>Usuario conectado: <strong><%= email %></strong></h1>                        
+      
   </body>
 </html>
+
+
+

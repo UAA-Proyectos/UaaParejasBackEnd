@@ -9,7 +9,7 @@
 </head>
 <body>
 	<div class="login-form">
-		<h1>Login con Node Js</h1>
+		<h1>Login </h1>
 		<form action="auth" method="POST">
 			<input type="text" name="user" placeholder="User" autofocus required>
 			<input type="password" name="pass" placeholder="Password" required>
@@ -17,22 +17,14 @@
 		</form>
 		<a href="register" class="btn-register">Register</a>
 		
-		
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
-
-   <% if (typeof alert != "undefined")  { %>
     <script>
-    Swal.fire({
-      title:'<%= alertTitle %>',
-      text:'<%= alertMessage %>',
-      icon:'<%= alertIcon %>',
-      showConfirmButton: <%= showConfirmButton %>,
-      timer: <%= timer %>
-    }).then(()=>{
-      window.location='/<%= ruta %>'
-    })
+		if(localStorage.getItem("logeddin") === null){
+
+		}else{
+			window.location("/index.ejs");
+		}
     </script>
-  <% } %>
+
 	</div>
 </body>
 </html>
