@@ -208,7 +208,7 @@ app.put('/user/:id', (req,res) => {
         if(err){
             console.log(err);
         }
-        res.send({
+        res.status(201).send({
             message:'data updated'
         })
     })
