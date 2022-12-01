@@ -169,13 +169,19 @@ app.use(bodyparser.json());
 // EndPoint Obtener info de un usuario
 app.get('/user/:id', (req, res) => {
     let gID = req.params.id;
-    let query = `select u.birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, ine.name as "interes" from user u inner join user_interest i on (u.id = i.id_user && u.id = ${gID}) inner join interest ine on ine.id = i.category_id`;
-    connection.query(query,(err,result) =>{
+    let query = `select u.birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email from user u inner join user_interest i on (u.id = i.id_user && u.id = ${gID}) inner join interest ine on ine.id = i.category_id`;
+    connection.query(query,(err,user) =>{
         if(err){
             console.log(err,'errs');
         }
         if(result.length>0){
-           res.status(200).send({status: "ok", message: "1 User data", data: result});
+            query = `select name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${gID}`;
+           connection.query(query, (err,interest) => {
+            if(result.length>0){
+                res.status(200).send({status: "ok", message: "1 User data", data: {user,interest}});
+            }
+           }) 
+           
         }
         else{
             res.status(400).send('Data not found');
@@ -194,11 +200,9 @@ app.put('/user/:id', (req,res) => {
     let zodiac = req.body.zodiac_sign;
     let username = req.body.username;
     let email = req.body.email;
-    let password = req.body.password;
-
+   
     let query = `update user set birthdate = '${birthdate}', description = '${description}',
-                    zodiac_sign = '${zodiac}', username = '${username}', email = '${email}', password = '${password}'
-                    where id = ${gID}`;
+                    zodiac_sign = '${zodiac}', username = '${username}', email = '${email}' where id = ${gID}`;
 
     connection.query(query, (err, result) =>{
         if(err){
@@ -212,26 +216,30 @@ app.put('/user/:id', (req,res) => {
 
 //Cambio de contraseña
 
-app.put('/changepass/:id', (req, res) => {
+app.post('/changepassw', async (req, res) => {
     console.log('Edit contraseña');
     
-    let gID = req.params.id;
+    let email = req.body.email;
     let oldPassword = req.body.oldPassword;
     let newPassword = req.body.newPassword;
-
-   
-        let query = `update user set password = '${newPassword}' where id = ${gID}`;
-        connection.query(query, (err, result) =>{
-            if(err){
-                console.log(err);
-            }
-            if(oldPassword == "sacar contraseña de la bd")
-                res.status(201).send({status: "ok", message: "data updated"});
-            
-            else
-                res.status(400).send('Error contraseña');
-        });
     
+    console.log(email, oldPassword, newPassword)
+    
+    connection.query(`SELECT password FROM user WHERE email = ${email}`, async (error, results, fields) => {
+        const match = await bcrypt.compare(oldPassword,results[0].password);
+        if(match){
+            let query = `update user set password = '${newPassword}' where email = ${email}`;
+            connection.query(query, (err, result) => {
+                if(err){
+                    console.log(err);
+                }
+                res.status(201).send({status: "ok", message: "data updated"});
+            });
+        }
+        else{
+            res.status(400).send('Error contraseña');
+        }
+    });
         
 })
 
@@ -248,9 +256,11 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-	// storage
+	storage: storage
 });
 
+
+//Recibir las imagenes
 app.post('/file',upload.single('file'),(req,res,next) => {
 	const file = req.file;
 
@@ -271,7 +281,8 @@ app.post('/file',upload.single('file'),(req,res,next) => {
     res.send(file);
     console.log(filesImg);
 
-    mysqlConnection.query('INSERT INTO files set ?', [filesImg]);
+    mysqlConnection.query('INSERT INTO photo set ?', [filesImg]);
+    console.log('insertada')
 })
 
 
