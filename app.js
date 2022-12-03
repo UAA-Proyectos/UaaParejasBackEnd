@@ -174,10 +174,10 @@ app.get('/user/:id', (req, res) => {
         if(err){
             console.log(err,'errs');
         }
-        if(result.length>0){
+        if(user.length>0){
             query = `select name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${gID}`;
            connection.query(query, (err,interest) => {
-            if(result.length>0){
+            if(interest.length>0){
                 res.status(200).send({status: "ok", message: "1 User data", data: {user,interest}});
             }
            }) 
@@ -260,6 +260,15 @@ const upload = multer({
 });
 
 
+app.get("/upload/:id", (req, res) => {
+    connection.query(`select path from photo where id_user = ${id}`, (err, rows, fields) => {
+        if(!err)
+            res.json(rows);
+        else
+            console.log(err);
+    })
+})
+
 //Recibir las imagenes
 app.post('/file',upload.single('file'),(req,res,next) => {
 	const file = req.file;
@@ -281,8 +290,11 @@ app.post('/file',upload.single('file'),(req,res,next) => {
     res.send(file);
     console.log(filesImg);
 
-    mysqlConnection.query('INSERT INTO photo set ?', [filesImg]);
-    console.log('insertada')
+    connection.query('INSERT INTO photo set ?', [filesImg], (err, result)=>{
+        if(result.length>0){
+            res.status(200).send({status: "ok", message: "1 User data", data: result});
+        }
+    });
 })
 
 
