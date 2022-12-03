@@ -297,7 +297,68 @@ app.post('/file',upload.single('file'),(req,res,next) => {
     });
 })
 
+// Recibe el Id del usuario actual y asi como un status (like, block, etc) para mostrar todos los usuarios con los que tiene ese status 
+app.get('/matches/:id',(req, res) => {
+    let gID = req.params.id;
+    let status = req.body.status;
+    console.log(req.body.status);
+    
+    let query = `select user.username, interaction.status from user inner join interaction on (user.id = interaction.id_user2 and interaction.id_user1= ${gID}) and (interaction.status = "${status}") `;
+    connection.query(query,(err,users) =>{
+        if(err){
+            console.log(err,'errs');
+        }
+        if(users.length>0){
+                res.status(200).send({status: "ok", message: "Matches found", data: users});
+           
+        }
+        else{
+            res.status(400).send('Data not found');
+        }
+    })
 
+});
+
+//Mostrar lista de orientacion sexual
+app.get('/orientations',(req, res) => {    
+    let query = `select name from sexual_orientation`;
+    connection.query(query,(err,orientations) =>{
+        if(err){
+            console.log(err,'errs');
+        }
+        if(orientations.length>0){
+                res.status(200).send({status: "ok", message: "Sexual orientations", data: orientations});
+           
+        }
+        else{
+            res.status(400).send('Data not found');
+        }
+    })
+
+});
+
+//Recibe el id del usuario 2 y el nuevo status y actualiza la tabla status
+
+app.put('/changeinteraction/:id', (req,res) => {
+    
+    console.log(req.body, 'updatedata');
+    
+    let gID = req.params.id;
+
+    let user2 = req.body.user2; 
+    let newStatus = req.body.newStatus;
+   
+    let query = `update interaction set status = '${newStatus}' where id_user1 = ${gID} and id_user2 = ${user2}`;
+
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }
+        res.status(201).send({
+            message:'data updated'
+        })
+    })
+})
 
 app.listen(3000, (req, res)=>{
     console.log('SERVER RUNNING IN http://localhost:3000');
