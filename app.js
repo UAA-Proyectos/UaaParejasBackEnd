@@ -171,13 +171,19 @@ app.use(bodyparser.json());
 // EndPoint Obtener info de un usuario
 app.get('/user/:id', (req, res) => {
     let gID = req.params.id;
-    let query = `select u.birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, ine.name as "interes" from user u inner join user_interest i on (u.id = i.id_user && u.id = ${gID}) inner join interest ine on ine.id = i.category_id`;
-    connection.query(query,(err,result) =>{
+    let query = `select u.birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email from user u inner join user_interest i on (u.id = i.id_user && u.id = ${gID}) inner join interest ine on ine.id = i.category_id`;
+    connection.query(query,(err,user) =>{
         if(err){
             console.log(err,'errs');
         }
-        if(result.length>0){
-           res.status(200).send({status: "ok", message: "1 User data", data: result});
+        if(user.length>0){
+            query = `select name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${gID}`;
+           connection.query(query, (err,interest) => {
+            if(interest.length>0){
+                res.status(200).send({status: "ok", message: "1 User data", data: {user,interest}});
+            }
+           }) 
+           
         }
         else{
             res.status(400).send('Data not found');
@@ -196,17 +202,15 @@ app.put('/user/:id', (req,res) => {
     let zodiac = req.body.zodiac_sign;
     let username = req.body.username;
     let email = req.body.email;
-    let password = req.body.password;
-
+   
     let query = `update user set birthdate = '${birthdate}', description = '${description}',
-                    zodiac_sign = '${zodiac}', username = '${username}', email = '${email}', password = '${password}'
-                    where id = ${gID}`;
+                    zodiac_sign = '${zodiac}', username = '${username}', email = '${email}' where id = ${gID}`;
 
     connection.query(query, (err, result) =>{
         if(err){
             console.log(err);
         }
-        res.send({
+        res.status(201).send({
             message:'data updated'
         })
     })
@@ -214,26 +218,30 @@ app.put('/user/:id', (req,res) => {
 
 //Cambio de contraseña
 
-app.put('/changepass/:id', (req, res) => {
+app.post('/changepassw', async (req, res) => {
     console.log('Edit contraseña');
     
-    let gID = req.params.id;
+    let email = req.body.email;
     let oldPassword = req.body.oldPassword;
     let newPassword = req.body.newPassword;
-
-   
-        let query = `update user set password = '${newPassword}' where id = ${gID}`;
-        connection.query(query, (err, result) =>{
-            if(err){
-                console.log(err);
-            }
-            if(oldPassword == "sacar contraseña de la bd")
-                res.status(201).send({status: "ok", message: "data updated"});
-            
-            else
-                res.status(400).send('Error contraseña');
-        });
     
+    console.log(email, oldPassword, newPassword)
+    
+    connection.query(`SELECT password FROM user WHERE email = ${email}`, async (error, results, fields) => {
+        const match = await bcrypt.compare(oldPassword,results[0].password);
+        if(match){
+            let query = `update user set password = '${newPassword}' where email = ${email}`;
+            connection.query(query, (err, result) => {
+                if(err){
+                    console.log(err);
+                }
+                res.status(201).send({status: "ok", message: "data updated"});
+            });
+        }
+        else{
+            res.status(400).send('Error contraseña');
+        }
+    });
         
 })
 
@@ -250,9 +258,20 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
-	// storage
+	storage: storage
 });
 
+
+app.get("/upload/:id", (req, res) => {
+    connection.query(`select path from photo where id_user = ${id}`, (err, rows, fields) => {
+        if(!err)
+            res.json(rows);
+        else
+            console.log(err);
+    })
+})
+
+//Recibir las imagenes
 app.post('/file',upload.single('file'),(req,res,next) => {
 	const file = req.file;
 
@@ -273,10 +292,75 @@ app.post('/file',upload.single('file'),(req,res,next) => {
     res.send(file);
     console.log(filesImg);
 
-    mysqlConnection.query('INSERT INTO files set ?', [filesImg]);
+    connection.query('INSERT INTO photo set ?', [filesImg], (err, result)=>{
+        if(result.length>0){
+            res.status(200).send({status: "ok", message: "1 User data", data: result});
+        }
+    });
 })
 
+// Recibe el Id del usuario actual y asi como un status (like, block, etc) para mostrar todos los usuarios con los que tiene ese status 
+app.get('/matches/:id',(req, res) => {
+    let gID = req.params.id;
+    let status = req.body.status;
+    console.log(req.body.status);
+    
+    let query = `select user.username, interaction.status from user inner join interaction on (user.id = interaction.id_user2 and interaction.id_user1= ${gID}) and (interaction.status = "${status}") `;
+    connection.query(query,(err,users) =>{
+        if(err){
+            console.log(err,'errs');
+        }
+        if(users.length>0){
+                res.status(200).send({status: "ok", message: "Matches found", data: users});
+           
+        }
+        else{
+            res.status(400).send('Data not found');
+        }
+    })
 
+});
+
+//Mostrar lista de orientacion sexual
+app.get('/orientations',(req, res) => {    
+    let query = `select name from sexual_orientation`;
+    connection.query(query,(err,orientations) =>{
+        if(err){
+            console.log(err,'errs');
+        }
+        if(orientations.length>0){
+                res.status(200).send({status: "ok", message: "Sexual orientations", data: orientations});
+           
+        }
+        else{
+            res.status(400).send('Data not found');
+        }
+    })
+
+});
+
+//Recibe el id del usuario 2 y el nuevo status y actualiza la tabla status
+
+app.put('/changeinteraction/:id', (req,res) => {
+    
+    console.log(req.body, 'updatedata');
+    
+    let gID = req.params.id;
+
+    let user2 = req.body.user2; 
+    let newStatus = req.body.newStatus;
+   
+    let query = `update interaction set status = '${newStatus}' where id_user1 = ${gID} and id_user2 = ${user2}`;
+
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }
+        res.status(201).send({
+            message:'data updated'
+        })
+    })
+})
 
 app.listen(3000, (req, res)=>{
     console.log('SERVER RUNNING IN http://localhost:3000');
