@@ -150,6 +150,8 @@ app.use(function (req, res, next) {
 //Destruye la sesión.
 app.get('/logout', function (req, res) {
 	req.session.destroy(() => {
+        res.status(200);
+        res.send();
         res.redirect('/') // siempre se ejecutará después de que se destruya la sesión
 	})
 });
