@@ -35,7 +35,7 @@ CREATE TABLE `interaction` (
   CONSTRAINT `id_user1` FOREIGN KEY (`id_user1`) REFERENCES `user` (`id`),
   CONSTRAINT `id_user2` FOREIGN KEY (`id_user2`) REFERENCES `user` (`id`),
   CONSTRAINT `idSatus` FOREIGN KEY (`idStatus`) REFERENCES `status` (`idStatus`)
-) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=71 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -44,7 +44,7 @@ CREATE TABLE `interaction` (
 
 LOCK TABLES `interaction` WRITE;
 /*!40000 ALTER TABLE `interaction` DISABLE KEYS */;
-INSERT INTO `interaction` VALUES (47,14,12,1),(50,12,14,2),(59,13,14,1),(66,12,30,1),(67,14,30,1);
+INSERT INTO `interaction` VALUES (47,14,12,1),(50,12,14,2),(59,13,14,1),(66,12,30,1),(67,14,30,1),(70,12,33,2);
 /*!40000 ALTER TABLE `interaction` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -119,7 +119,7 @@ CREATE TABLE `message` (
   KEY `id_match_idx` (`id_match`),
   CONSTRAINT `match_id` FOREIGN KEY (`id_match`) REFERENCES `match` (`id_match`),
   CONSTRAINT `userId` FOREIGN KEY (`id_user`) REFERENCES `user` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=33 DEFAULT CHARSET=utf8mb3;
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb3;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -128,7 +128,7 @@ CREATE TABLE `message` (
 
 LOCK TABLES `message` WRITE;
 /*!40000 ALTER TABLE `message` DISABLE KEYS */;
-INSERT INTO `message` VALUES (8,14,'2022-12-06 18:25:15',1,'hola 3?',3),(11,14,'2022-12-06 18:27:05',1,'hola 3?',3),(14,14,'2022-12-06 18:41:23',0,'Holaaaa ?',3),(15,14,'2022-12-06 19:55:40',0,'aaaa',3),(16,14,'2022-12-06 19:56:49',0,'aaa',3),(17,14,'2022-12-06 20:00:01',0,'xd',3),(18,12,'2022-12-06 20:00:53',0,'aaaa',3),(19,14,'2022-12-06 20:01:52',0,'xxx',3),(20,14,'2022-12-06 20:02:46',0,'xxxx',3),(21,14,'2022-12-06 20:03:47',0,'aaaaaaaaaaaaaaaaaaa',3),(22,14,'2022-12-06 20:07:22',0,'aaa',3),(23,14,'2022-12-06 20:07:28',0,'xddd',3),(24,14,'2022-12-06 20:10:30',0,'aa',3),(25,14,'2022-12-06 20:11:46',0,'aaaa',3),(26,12,'2022-12-06 20:11:57',0,'jejeeee',3),(27,14,'2022-12-06 20:12:29',0,'aaa',3),(28,14,'2022-12-06 20:16:14',0,'aaaaaa',3),(29,14,'2022-12-06 20:16:28',0,'jelo',7),(30,14,'2022-12-06 20:17:07',0,'hhhhh',3),(31,14,'2022-12-06 20:28:01',0,'xd',7),(32,14,'2022-12-06 20:31:35',0,'noop',3);
+INSERT INTO `message` VALUES (8,14,'2022-12-06 18:25:15',1,'hola 3?',3),(11,14,'2022-12-06 18:27:05',1,'hola 3?',3),(14,14,'2022-12-06 18:41:23',0,'Holaaaa ?',3),(15,14,'2022-12-06 19:55:40',0,'aaaa',3),(16,14,'2022-12-06 19:56:49',0,'aaa',3),(17,14,'2022-12-06 20:00:01',0,'xd',3),(18,12,'2022-12-06 20:00:53',0,'aaaa',3),(19,14,'2022-12-06 20:01:52',0,'xxx',3),(20,14,'2022-12-06 20:02:46',0,'xxxx',3),(21,14,'2022-12-06 20:03:47',0,'aaaaaaaaaaaaaaaaaaa',3),(22,14,'2022-12-06 20:07:22',0,'aaa',3),(23,14,'2022-12-06 20:07:28',0,'xddd',3),(24,14,'2022-12-06 20:10:30',0,'aa',3),(25,14,'2022-12-06 20:11:46',0,'aaaa',3),(26,12,'2022-12-06 20:11:57',0,'jejeeee',3),(27,14,'2022-12-06 20:12:29',0,'aaa',3),(28,14,'2022-12-06 20:16:14',0,'aaaaaa',3),(29,14,'2022-12-06 20:16:28',0,'jelo',7),(30,14,'2022-12-06 20:17:07',0,'hhhhh',3),(31,14,'2022-12-06 20:28:01',0,'xd',7),(32,14,'2022-12-06 20:31:35',0,'noop',3),(33,14,'2022-12-06 21:47:45',0,'oir',3);
 /*!40000 ALTER TABLE `message` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -229,6 +229,7 @@ CREATE TABLE `user` (
   `validated` tinyint(1) DEFAULT NULL,
   `gender` int DEFAULT NULL,
   `show_me` int DEFAULT NULL,
+  `user_type` int DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `email_UNIQUE` (`email`),
   KEY `id_sexual_orientation_idx` (`zodiac_sign`)
@@ -241,7 +242,7 @@ CREATE TABLE `user` (
 
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
-INSERT INTO `user` VALUES (12,'2001-02-12','2022-11-23 04:42:57','Ig. pepe_froog\nmi rola es bellakath ?',0,'Pepe Froog','test@mailinator.com','$2a$08$eaRol3bYQF5uObEvbctXNukkTD.GFoq7JZzyriquUV0pwQPetwRGC','Aguascalientes',0,2,NULL,NULL,NULL),(13,'1000-10-12','2022-11-23 16:19:48','a',11,'Jacob Bonilla','test_gina@mailinator.com','$2a$08$Q.XeMGKS.sdv3zN.cbFa5OJJeGJm8.CYfHJ4MZE.iumzfAwnvzWvy',NULL,0,2,NULL,NULL,NULL),(14,'2022-11-30','2022-11-30 02:32:10','Hola soy Jacob ?',9,'Jacob Bonilla ?','jacobhuerta875@gmail.com','$2a$08$wxEzj8gTyQXum8doQsdxeOnFW4AMS3Cwodq5ANWB6g9GNKBCeCvxO','Aguascalientes',0,3,NULL,0,0),(25,'2022-12-27','2022-12-04 21:28:09',NULL,NULL,'Jacob','aaaa@a.com','$2a$08$bIEgxLe7v9OulC9Lz2TJf.XmEUCwL8kh/a0jU1LcZBe3rwe2NrloG',NULL,0,1,NULL,NULL,NULL),(26,'2022-11-10','2022-12-05 02:42:49',NULL,NULL,'PruebaVictor','pepe28aurelio@gmail.com','$2a$08$yJdoQs3lC.sUKFDdLu8Nc.OLvZClsnGelG/IItF6ZCTw15f7RlKrG',NULL,0,1,NULL,NULL,NULL),(30,'2022-12-20','2022-12-07 00:06:28','soy vic ',4,'Vixx','vix@test.com','$2a$08$.as/NAZ0WG9W43f1T2dJEumxPbOBs/RXsyiccnU49s.ogHfTH62w6','Aguascalientes',0,1,NULL,NULL,NULL),(31,'2022-01-06','2022-12-07 03:30:50',NULL,NULL,'diosito','yaporfavor@mimir.com','$2a$08$KU43phdqT9DF/dikAlvkiepyG.2ahV24FAsJ0.4fAkmxkKV53H4F2',NULL,0,1,NULL,NULL,NULL),(32,'2016-02-02','2022-12-07 03:35:10',NULL,NULL,'profa','profa@edu.com','$2a$08$8MBQtn6sSK44lg80RiF9D.Kcd2fwI4EjT4iBliQKDytcrV78pOfcS',NULL,0,1,NULL,NULL,NULL),(33,'2022-12-27','2022-12-07 03:35:43','Soy mayestra',0,'Clelia','profa2@edu.com','$2a$08$X0XlO1q9jqSM5092RlB2X.XO0Ol4Ju.NCn8UaOUPTP3GTI.n2pMW.','Aguascalientes',0,2,NULL,0,0);
+INSERT INTO `user` VALUES (12,'2001-02-12','2022-11-23 04:42:57','Ig. pepe_froog\nmi rola es bellakath ?',0,'Pepe Froog','test@mailinator.com','$2a$08$eaRol3bYQF5uObEvbctXNukkTD.GFoq7JZzyriquUV0pwQPetwRGC','Aguascalientes',0,2,NULL,NULL,NULL,0),(13,'1000-10-12','2022-11-23 16:19:48','a',11,'Jacob Bonilla','test_gina@mailinator.com','$2a$08$Q.XeMGKS.sdv3zN.cbFa5OJJeGJm8.CYfHJ4MZE.iumzfAwnvzWvy',NULL,0,2,NULL,NULL,NULL,0),(14,'2022-11-30','2022-11-30 02:32:10','Hola soy Jacob ?',9,'Jacob Bonilla ?','jacobhuerta875@gmail.com','$2a$08$wxEzj8gTyQXum8doQsdxeOnFW4AMS3Cwodq5ANWB6g9GNKBCeCvxO','Aguascalientes',0,3,NULL,0,0,0),(25,'2022-12-27','2022-12-04 21:28:09',NULL,NULL,'Jacob','aaaa@a.com','$2a$08$bIEgxLe7v9OulC9Lz2TJf.XmEUCwL8kh/a0jU1LcZBe3rwe2NrloG',NULL,0,1,NULL,NULL,NULL,0),(26,'2022-11-10','2022-12-05 02:42:49',NULL,NULL,'PruebaVictor','pepe28aurelio@gmail.com','$2a$08$yJdoQs3lC.sUKFDdLu8Nc.OLvZClsnGelG/IItF6ZCTw15f7RlKrG',NULL,0,1,NULL,NULL,NULL,0),(30,'2022-12-20','2022-12-07 00:06:28','soy vic ',4,'Vixx','vix@test.com','$2a$08$.as/NAZ0WG9W43f1T2dJEumxPbOBs/RXsyiccnU49s.ogHfTH62w6','Aguascalientes',0,1,NULL,NULL,NULL,0),(31,'2022-01-06','2022-12-07 03:30:50',NULL,NULL,'diosito','yaporfavor@mimir.com','$2a$08$KU43phdqT9DF/dikAlvkiepyG.2ahV24FAsJ0.4fAkmxkKV53H4F2',NULL,0,1,NULL,NULL,NULL,0),(32,'2016-02-02','2022-12-07 03:35:10',NULL,NULL,'profa','profa@edu.com','$2a$08$8MBQtn6sSK44lg80RiF9D.Kcd2fwI4EjT4iBliQKDytcrV78pOfcS',NULL,0,1,NULL,NULL,NULL,0),(33,'2022-12-27','2022-12-07 03:35:43','Soy mayestra',0,'Clelia','profa2@edu.com','$2a$08$X0XlO1q9jqSM5092RlB2X.XO0Ol4Ju.NCn8UaOUPTP3GTI.n2pMW.','Aguascalientes',0,2,NULL,0,0,0);
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -282,4 +283,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-12-06 21:43:18
+-- Dump completed on 2022-12-06 21:52:49
