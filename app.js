@@ -107,7 +107,7 @@ app.post('/auth', async (req, res) => {
                 req.session.username = results[0].username;
                 if (match) {
                     res.send({
-                        id: results[0].id
+                        id: results[0].id, user_type: results[0].user_type
                     })
                 }
                 else {
@@ -178,7 +178,7 @@ app.use(bodyparser.json());
 // EndPoint Obtener info de un usuario
 app.get('/user/:id', (req, res) => {
     let gID = req.params.id;
-    let query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation, u.gender, u.show_me from user u where u.id = ${gID}`;
+    let query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation, u.gender, u.show_me, u.user_type from user u where u.id = ${gID}`;
     connection.query(query, (err, user) => {
         if (err) {
             console.log(err, 'errs');
@@ -547,6 +547,145 @@ app.put("/message", (req, res)=> {
     })
 
 })
+
+
+
+//reporte #1 -> usuarios activos OK
+app.get('/reportone',(req, res) => {
+
+    let query = `select count(*) as total_active_users FROM user where deleted != 1 `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            res.status(404).send('Error papito');
+        }else{
+        res.status(201).send({status:"ok",message:"reportone",data: result[0]});
+        }
+    })
+
+});
+
+//reporte #3 -> orientaciones sexuales OK
+app.get('/reportthree',(req, res) => {
+
+    let query = `select n.name, u.id_sexual_orientation, (count(u.id_sexual_orientation)/(select count(*) from user)) * 100 as porcentaje from user u inner join mydb.sexual_orientation n on n.id_sexual_orientation = u.id_sexual_orientation GROUP BY id_sexual_orientation ORDER BY PORCENTAJE DESC`
+        connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err)
+            res.status(404).send('Error papito');
+        }else{
+            res.status(201).send({status:"ok",message:"reportthree",data: result});
+        }
+
+    })
+
+});
+
+//reporte #6
+app.get('/reportsix',(req, res) => {
+
+    let query = `select gender, (count(gender)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY gender order by gender desc`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportsix",data: result});
+        }
+
+    })
+
+});
+
+//reporte #7 -> cantidad total de matches hechos en la app OK
+app.get('/reportseven',(req, res) => {
+
+    let query = `select count(*) as total_matches from mydb.match `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportseven",data: result[0]});
+        }
+
+    })
+
+});
+
+//reporte #8 lista de usuarios con más interacciones OK kinda
+app.get('/reporteight',(req, res) => {
+
+    let query = `select u.id, u.username, i.id_user1, count(*) as count from user u INNER JOIN interaction i on u.id= i.id_user1 GROUP BY i.id_user1 HAVING COUNT ORDER BY count DESC limit 25 `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reporteight",data: result});
+        }
+
+    })
+
+});
+
+//reporte #9 usuarios que más envian mensajes OK
+app.get('/reportnine',(req, res) => {
+
+    let query = `SELECT u.id, u.username, count(*) as count FROM user u INNER JOIN message i on u.id= i.id_user GROUP BY (u.id) ORDER BY count  DESC limit 25`    
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportnine",data: result});
+        }
+
+    })
+
+});
+
+//reporte edad OK
+app.get('/reportedad',(req, res) => {
+
+    let query = `select avg( Year(now()) - Year(birthdate) ) as edad_promedio from user`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportedad",data: result});
+        }
+
+    })
+
+});
+
+//reporte signo OK
+app.get('/reportsigno',(req, res) => {
+
+    let query = `SELECT zodiac_sign, (count(zodiac_sign)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY zodiac_sign order by cantidad desc`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportsigno",data: result});
+        }
+
+    })
+
+});
+
+//reporte Estados OK
+app.get('/reportestados',(req, res) => {
+
+    let query = `SELECT location, (count(location)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY location having cantidad >0 ORDER BY cantidad DESC limit 25`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportestados",data:result});
+        }
+
+    })
+
+});
+
+
 
 app.listen(3000, (req, res) => {
     console.log('SERVER RUNNING IN http://localhost:3000');
