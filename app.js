@@ -151,7 +151,7 @@ app.use(function (req, res, next) {
 app.get('/logout', function (req, res) {
 	req.session.destroy(() => {
         res.status(200);
-        res.send();
+        
         res.redirect('/') // siempre se ejecutará después de que se destruya la sesión
 	})
 });
@@ -361,6 +361,160 @@ app.put('/changeinteraction/:id', (req,res) => {
         })
     })
 })
+
+//recibir la lista de gustos/preferencias/intereses
+app.get('/preferenceslist',(req,res)=>{
+    let cuery='select name from interest';
+    
+    connection.query(cuery,(err,interest)=>{
+        if(err){
+            res.status(404).send('Error papito');
+        }
+        let query = `select name from sexual_orientation`;
+        connection.query(query,(err,orientationn)=>{
+            if(err){
+                res.status(404).send('Error papito');
+            }else{
+                res.status(200).send({status:"ok",message:"list",data:{interest,orientationn}});
+            }
+        })
+        
+    })
+
+})
+//reporte #1
+app.get('/reportone',(req, res) => {
+
+    let query = `select count(*) FROM user where deleted != 1 `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            res.status(404).send('Error papito');
+        }else{
+        res.status(201).send({status:"ok",message:"reportone",data:{result}});
+        }
+    })
+
+});
+
+//reporte #3
+app.get('/reportthree',(req, res) => {
+
+    let query = `select id_sexual_orientation, (count(id_sexual_orientation)/(select count() from user))100 as porcentaje from user GROUP BY id_sexual_orientation `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            res.status(404).send('Error papito');
+        }else{
+            res.status(201).send({status:"ok",message:"reportthree",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte #6
+app.get('/reportsix',(req, res) => {
+
+    let query = `select gender, (count(gender)/(select count() from user))100 as cantidad FROM user GROUP BY gender `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportsix",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte #7
+app.get('/reportseven',(req, res) => {
+
+    let query = `select count(*) from mydb.match `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportseven",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte #8
+app.get('/reporteight',(req, res) => {
+
+    let query = `select u.id, u.username, i.id_user1, count() as cou from user u INNER JOIN interaction i on u.id= i.id_user1 GROUP BY i.id_user1 HAVING COUNT()>0 ORDER BY cou DESC limit 25 `;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reporteight",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte #9
+app.get('/reportnine',(req, res) => {
+
+    let query = ` SELECT u.id, u.username, count() as cou FROM user u INNER JOIN interaction i on u.id= i.id_user1 inner join mydb.match m on i.idInteraction = m.idInteraction GROUP BY i.id_user1 HAVING COUNT()>0 ORDER BY cou DESC limit 25`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportnine",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte edad
+app.get('/reportedad',(req, res) => {
+
+    let query = `select avg( Year(now()) - Year(birthdate) ) from user`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportedad",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte signo
+app.get('/reportsigno',(req, res) => {
+
+    let query = `SELECT zodiac_sign, (count(zodiac_sign)/(select count() from user))100 as cantidad FROM user GROUP BY zodiac_sign`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportsigno",data:{result}});
+        }
+        
+    })
+
+});
+
+//reporte Estados
+app.get('/reportestados',(req, res) => {
+
+    let query = `SELECT location, (count(location)/(select count() from user))100 as cantidad FROM user GROUP BY location having COUNT(*) >0 ORDER BY cantidad DESC limit 25`;
+    connection.query(query, (err, result) =>{
+        if(err){
+            console.log(err);
+        }else{
+            res.status(201).send({status:"ok",message:"reportestados",data:{result}});
+        }
+        
+    })
+
+});
 
 app.listen(3000, (req, res)=>{
     console.log('SERVER RUNNING IN http://localhost:3000');
