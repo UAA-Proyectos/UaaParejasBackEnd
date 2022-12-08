@@ -382,30 +382,81 @@ app.get('/orientations', (req, res) => {
 });
 
 //Recibe el id del usuario 2 y el nuevo status y actualiza la tabla status
-
 app.put('/changeinteraction/:id', (req, res) => {
 
     console.log(req.body, 'updatedata');
-
-    let gID = req.params.id;
-    /*
-    aqui tenemos que asegurarnos de que acomadar para que en el query el id_user1 sea menor que el id_user2,
-    además de que tenemos que considerar todos los posibles estados; regresar campo match boleano que indica si se hizo match o nop
-
-    del front mandare 1 si es like y 2 si es dislike, pero se tiene que analizar que usuario dio el like para así poner bien el estado
-    */
-    let user2 = req.body.user2;
+    let user1 = req.params.id;//14
+    let isuser1 = true;
+    let user2 = req.body.user2;//12
     let newStatus = req.body.newStatus;
-    let query = `REPLACE into interaction (idStatus, id_user1, id_user2) values ('${newStatus}', '${user2}', '${gID}');`;
+    let auxstat;
+    let query = `select idInteraction,idStatus from interaction where (id_user1 = ${user2} and id_user2 = ${user1}) or (id_user1 = ${user1} and id_user2 = ${user2});`;
+    if (user1 > user2) {
+        let aux = user1;
+        user1 = user2;
+        user2 = aux;
+        isuser1 = false;
+    }
+    connection.query(query, (error, result) => {
 
-    connection.query(query, (err, result) => {
-        if (err) {
-            console.log(err);
+        if (result.length == 0) {
+
+            if (newStatus == 1 && isuser1) {
+                auxstat = 1;
+            } else if (newStatus == 1 && !isuser1) {
+                auxstat = 4;
+            } else if (newStatus == 2 && isuser1) {
+                auxstat = 2;
+            } else {
+                auxstat = 5;
+            }
+            query = `insert into interaction (id_user1,id_user2,idStatus) values ('${user1}', '${user2}','${auxstat}')`;
+            connection.query(query, (error, resultt) => {
+                console.log(resultt);
+                if (error) {
+                    res.status(500).send();
+                    console.log("error", error);
+                } else {
+                    res.status(201).send({ message: "ok", data: resultt, status: "ok", match: false });
+                }
+
+            })
+
+        } else {
+            let interactionn = result[0].idStatus;
+            console.log(interactionn, "interactiooon")
+            if ((interactionn == 1 || interactionn == 4) && newStatus == 1) {
+                query = `REPLACE into interaction (id_user1, id_user2,idStatus) values ('${user1}', '${user2}','7');`;
+                let query2 = `insert into mydb.match (idInteraction) value (${result[0].idInteraction});`;
+                connection.query(query, (err, ress) => {
+                    if (err) {
+                        console.log(err);
+                        res.status(500).send();
+                    } else {
+                        query2 = `insert into mydb.match (idInteraction) value (${ress.insertId});`;
+                        connection.query(query2, (error, resu) => {
+                            if (error) {
+                                console.log(err);
+                            } else {
+
+                                res.status(200).send({
+                                    message: 'data updated',
+                                    match: true
+                                })
+                            }
+                        })
+                    }
+                })
+
+
+            } else {
+                query = `delete from interaction where id_user1 = ${user1} and id_user2=${user2}`
+                res.status(200).send({
+                    message: 'data updated',
+                    match: false
+                })
+            }
         }
-        res.status(201).send({
-            message: 'data updated',
-            match: true
-        })
     })
 })
 
@@ -413,39 +464,117 @@ app.put('/changeinteraction/:id', (req, res) => {
 app.get('/possible_match/:userId', (req, res) => {
 
     //TODO aqui hacer el algoritmo de seleccion de match potencial | para pruebas id= 12
-    let userId = req.params.userId;
 
-    let query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${12}`;
+
+    console.log("posible match searchiiing")
+    let userId = req.params.userId;
+    //info usuario
+    let query = `select show_me from user where id = ${userId}`;
+
     connection.query(query, (err, user) => {
-        if (err) {
-            console.log(err, 'errs');
-        }
-        if (user.length > 0) {
-            console.log(user)
-            query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${12}`;
-            connection.query(query, (err, interest) => {
-                if (!err) {
-                    query = `select * from photo where id_user = ${12}`
-                    connection.query(query, (err, photos) => {
+        if (!err) {
+            let show_me = user[0]?.show_me ?? 0;
+            let users = [];
+            if (show_me == 2)
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId} ))  AND id NOT IN (select id_user2 from interaction where id_user1 = ${userId} or id_user2 = ${userId} )  limit 1`;
+            else
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId}))  AND id NOT IN (select id_user2 from interaction where (id_user1 = ${userId} or id_user2 = ${userId})) and gender = ${show_me} limit 1 `;
+
+            connection.query(query, (err, oneUser) => {
+                if (err)
+                    console.log(err)
+                else if (oneUser.length > 0) {
+                    console.log("one userrrrrr", oneUser[0])
+                    query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${oneUser[0].id}`;
+
+                    connection.query(query, (err, user) => {
                         if (err) {
+                            console.log(err, 'errs');
                             res.status(500).send({ error: err })
                         }
-                        else {
-                            user = user[0]
-                            res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                        else if (user.length > 0) {
+                            console.log(user)
+                            query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${oneUser[0].id}`;
+                            connection.query(query, (err, interest) => {
+                                if (!err) {
+                                    query = `select * from photo where id_user = ${oneUser[0].id}`
+                                    connection.query(query, (err, photos) => {
+                                        if (err) {
+                                            res.status(500).send({ error: err })
+                                        }
+                                        else {
+                                            user = user[0]
+                                            res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                                        }
+                                    })
+                                } else {
+                                    res.status(500).send({ error: err })
+                                }
+                            })
+
+                        }
+                    });
+                } else {
+                    //si está vaciooo...
+                    let user_kk = null
+                    query = `select * from interaction where id_user1 = ${userId} or id_user2 = ${userId}; `
+                    connection.query(query, (err, ress) => {
+                        if (ress.length > 0) {
+                            for (let i = 0; i < ress.length; i++) {
+                                if (ress[i].id_user1 != userId && (ress[i].idStatus == 1 || ress[i].idStatus == 2) && ress[i].idStatus != 7) {
+                                    user_kk = ress[i].id_user1;
+                                } else if (ress[i].id_user2 != userId && (ress[i].idStatus == 4 || ress[i].idStatus == 5) && ress[i].idStatus != 7) {
+                                    user_kk = ress[i].id_user2
+                                }
+                            }
+                            console.log("user llll", user_kk)
+
+                            if (user_kk != null) {
+                                query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${user_kk}`;
+
+                                connection.query(query, (err, user) => {
+                                    if (err) {
+                                        console.log(err, 'errs');
+                                    }
+                                    else if (user.length > 0) {
+                                        console.log(user)
+                                        query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${user_kk}`;
+                                        connection.query(query, (err, interest) => {
+                                            if (!err) {
+                                                query = `select * from photo where id_user = ${user_kk}`
+                                                connection.query(query, (err, photos) => {
+                                                    if (err) {
+                                                        res.status(500).send({ error: err })
+                                                    }
+                                                    else {
+                                                        user = user[0]
+                                                        res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                                                    }
+                                                })
+                                            } else {
+                                                res.status(500).send({ error: err })
+                                            }
+                                        })
+
+                                    }
+                                    else {
+                                        res.status(400).send('Data not found');
+                                    }
+                                });
+                            } else {
+                                res.status(200).send({ status: "ok", message: "1 User data" });
+                            }
+                        } else if (err) {
+                            res.status(500).send({ status: "error", error: err });
+                        } else {
+                            res.status(200).send({ status: "ok", message: "1 User data" });
                         }
                     })
-                } else {
-                    res.status(500).send({ error: err })
                 }
             })
 
         }
-        else {
-            res.status(400).send('Data not found');
-        }
     });
-
 });
 
 //Mostrar lista de intereses
