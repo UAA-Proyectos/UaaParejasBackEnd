@@ -80,7 +80,7 @@ app.post('/register', async (req, res) => {
                     res.status(200).send({ status: "ok", message: "photo uploaded", data: result });
                 }
             });
-    
+
         }
     });
 })
@@ -98,7 +98,7 @@ app.post('/auth', async (req, res) => {
             if (error) {
                 console.log(error, 'errs');
             }
-          
+
 
             if (results.length > 0) {
                 const match = await bcrypt.compare(pass, results[0].password)
@@ -159,7 +159,7 @@ app.use(function (req, res, next) {
 //Destruye la sesión.
 app.post('/logout', function (req, res) {
     req.session.destroy()
-    res.status(200).send({message: "user logged out"})
+    res.status(200).send({ message: "user logged out" })
 });
 
 // const express = require('express');
@@ -382,30 +382,81 @@ app.get('/orientations', (req, res) => {
 });
 
 //Recibe el id del usuario 2 y el nuevo status y actualiza la tabla status
-
 app.put('/changeinteraction/:id', (req, res) => {
 
     console.log(req.body, 'updatedata');
-
-    let gID = req.params.id;
-    /*
-    aqui tenemos que asegurarnos de que acomadar para que en el query el id_user1 sea menor que el id_user2,
-    además de que tenemos que considerar todos los posibles estados; regresar campo match boleano que indica si se hizo match o nop
-
-    del front mandare 1 si es like y 2 si es dislike, pero se tiene que analizar que usuario dio el like para así poner bien el estado
-    */
-    let user2 = req.body.user2;
+    let user1 = req.params.id;//14
+    let isuser1 = true;
+    let user2 = req.body.user2;//12
     let newStatus = req.body.newStatus;
-    let query = `REPLACE into interaction (idStatus, id_user1, id_user2) values ('${newStatus}', '${user2}', '${gID}');`;
+    let auxstat;
+    let query = `select idInteraction,idStatus from interaction where (id_user1 = ${user2} and id_user2 = ${user1}) or (id_user1 = ${user1} and id_user2 = ${user2});`;
+    if (user1 > user2) {
+        let aux = user1;
+        user1 = user2;
+        user2 = aux;
+        isuser1 = false;
+    }
+    connection.query(query, (error, result) => {
 
-    connection.query(query, (err, result) => {
-        if (err) {
-            console.log(err);
+        if (result.length == 0) {
+
+            if (newStatus == 1 && isuser1) {
+                auxstat = 1;
+            } else if (newStatus == 1 && !isuser1) {
+                auxstat = 4;
+            } else if (newStatus == 2 && isuser1) {
+                auxstat = 2;
+            } else {
+                auxstat = 5;
+            }
+            query = `insert into interaction (id_user1,id_user2,idStatus) values ('${user1}', '${user2}','${auxstat}')`;
+            connection.query(query, (error, resultt) => {
+                console.log(resultt);
+                if (error) {
+                    res.status(500).send();
+                    console.log("error", error);
+                } else {
+                    res.status(201).send({ message: "ok", data: resultt, status: "ok", match: false });
+                }
+
+            })
+
+        } else {
+            let interactionn = result[0].idStatus;
+            console.log(interactionn, "interactiooon")
+            if ((interactionn == 1 || interactionn == 4) && newStatus == 1) {
+                query = `REPLACE into interaction (id_user1, id_user2,idStatus) values ('${user1}', '${user2}','7');`;
+                let query2 = `insert into mydb.match (idInteraction) value (${result[0].idInteraction});`;
+                connection.query(query, (err, ress) => {
+                    if (err) {
+                        console.log(err);
+                        res.status(500).send();
+                    } else {
+                        query2 = `insert into mydb.match (idInteraction) value (${ress.insertId});`;
+                        connection.query(query2, (error, resu) => {
+                            if (error) {
+                                console.log(err);
+                            } else {
+
+                                res.status(200).send({
+                                    message: 'data updated',
+                                    match: true
+                                })
+                            }
+                        })
+                    }
+                })
+
+
+            } else {
+                query = `delete from interaction where id_user1 = ${user1} and id_user2=${user2}`
+                res.status(200).send({
+                    message: 'data updated',
+                    match: false
+                })
+            }
         }
-        res.status(201).send({
-            message: 'data updated',
-            match: true
-        })
     })
 })
 
@@ -413,39 +464,117 @@ app.put('/changeinteraction/:id', (req, res) => {
 app.get('/possible_match/:userId', (req, res) => {
 
     //TODO aqui hacer el algoritmo de seleccion de match potencial | para pruebas id= 12
-    let userId = req.params.userId;
 
-    let query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${12}`;
+
+    console.log("posible match searchiiing")
+    let userId = req.params.userId;
+    //info usuario
+    let query = `select show_me from user where id = ${userId}`;
+
     connection.query(query, (err, user) => {
-        if (err) {
-            console.log(err, 'errs');
-        }
-        if (user.length > 0) {
-            console.log(user)
-            query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${12}`;
-            connection.query(query, (err, interest) => {
-                if (!err) {
-                    query = `select * from photo where id_user = ${12}`
-                    connection.query(query, (err, photos) => {
+        if (!err) {
+            let show_me = user[0]?.show_me ?? 0;
+            let users = [];
+            if (show_me == 2)
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId} ))  AND id NOT IN (select id_user2 from interaction where id_user1 = ${userId} or id_user2 = ${userId} )  limit 1`;
+            else
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId}))  AND id NOT IN (select id_user2 from interaction where (id_user1 = ${userId} or id_user2 = ${userId})) and gender = ${show_me} limit 1 `;
+
+            connection.query(query, (err, oneUser) => {
+                if (err)
+                    console.log(err)
+                else if (oneUser.length > 0) {
+                    console.log("one userrrrrr", oneUser[0])
+                    query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${oneUser[0].id}`;
+
+                    connection.query(query, (err, user) => {
                         if (err) {
+                            console.log(err, 'errs');
                             res.status(500).send({ error: err })
                         }
-                        else {
-                            user = user[0]
-                            res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                        else if (user.length > 0) {
+                            console.log(user)
+                            query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${oneUser[0].id}`;
+                            connection.query(query, (err, interest) => {
+                                if (!err) {
+                                    query = `select * from photo where id_user = ${oneUser[0].id}`
+                                    connection.query(query, (err, photos) => {
+                                        if (err) {
+                                            res.status(500).send({ error: err })
+                                        }
+                                        else {
+                                            user = user[0]
+                                            res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                                        }
+                                    })
+                                } else {
+                                    res.status(500).send({ error: err })
+                                }
+                            })
+
+                        }
+                    });
+                } else {
+                    //si está vaciooo...
+                    let user_kk = null
+                    query = `select * from interaction where id_user1 = ${userId} or id_user2 = ${userId}; `
+                    connection.query(query, (err, ress) => {
+                        if (ress.length > 0) {
+                            for (let i = 0; i < ress.length; i++) {
+                                if (ress[i].id_user1 != userId && (ress[i].idStatus == 1 || ress[i].idStatus == 2) && ress[i].idStatus != 7) {
+                                    user_kk = ress[i].id_user1;
+                                } else if (ress[i].id_user2 != userId && (ress[i].idStatus == 4 || ress[i].idStatus == 5) && ress[i].idStatus != 7) {
+                                    user_kk = ress[i].id_user2
+                                }
+                            }
+                            console.log("user llll", user_kk)
+
+                            if (user_kk != null) {
+                                query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${user_kk}`;
+
+                                connection.query(query, (err, user) => {
+                                    if (err) {
+                                        console.log(err, 'errs');
+                                    }
+                                    else if (user.length > 0) {
+                                        console.log(user)
+                                        query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${user_kk}`;
+                                        connection.query(query, (err, interest) => {
+                                            if (!err) {
+                                                query = `select * from photo where id_user = ${user_kk}`
+                                                connection.query(query, (err, photos) => {
+                                                    if (err) {
+                                                        res.status(500).send({ error: err })
+                                                    }
+                                                    else {
+                                                        user = user[0]
+                                                        res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                                                    }
+                                                })
+                                            } else {
+                                                res.status(500).send({ error: err })
+                                            }
+                                        })
+
+                                    }
+                                    else {
+                                        res.status(400).send('Data not found');
+                                    }
+                                });
+                            } else {
+                                res.status(200).send({ status: "ok", message: "1 User data" });
+                            }
+                        } else if (err) {
+                            res.status(500).send({ status: "error", error: err });
+                        } else {
+                            res.status(200).send({ status: "ok", message: "1 User data" });
                         }
                     })
-                } else {
-                    res.status(500).send({ error: err })
                 }
             })
 
         }
-        else {
-            res.status(400).send('Data not found');
-        }
     });
-
 });
 
 //Mostrar lista de intereses
@@ -476,13 +605,13 @@ app.get('/chats/:id', (req, res) => {
         if (matches.length > 0) {
             let matchesArray = new Array()
             let match_information
-            for (let i = 0; i < matches.length ; i++) {
-                    console.log(matches.length)
+            for (let i = 0; i < matches.length; i++) {
+                console.log(matches.length)
                 if (matches[i].id_user1 == userId) {
-                      query = `select u.id, u.username, p.path from user u inner join photo p on u.id = p.id_user where u.id = ${matches[i].id_user2} order by p.id_photo desc limit 1;`
+                    query = `select u.id, u.username, p.path from user u inner join photo p on u.id = p.id_user where u.id = ${matches[i].id_user2} order by p.id_photo desc limit 1;`
                 } else {
                     query = `select u.id, u.username, p.path from user u inner join photo p on u.id = p.id_user where u.id = ${matches[i].id_user1} order by p.id_photo desc limit 1;`
-               
+
                 }
                 connection.query(query, (err, user_match_info) => {
                     if (err) {
@@ -493,22 +622,22 @@ app.get('/chats/:id', (req, res) => {
                             match_information = { match: matches[i], user: user_match_info[0] }
                             matchesArray.push(match_information)
                         }
-                        else{
-                            matchesArray.push({match: matches[i], user: {}})
+                        else {
+                            matchesArray.push({ match: matches[i], user: {} })
                         }
                     }
-                    if (i == matches.length-1) {
+                    if (i == matches.length - 1) {
                         console.log(matchesArray)
                         res.status(200).send({ status: "ok", message: "matches", data: matchesArray });
                     }
                 }
-                
+
                 )
             }
 
         }
         else {
-            res.status(200).send({status: "ok", message: "matches", data: []});
+            res.status(200).send({ status: "ok", message: "matches", data: [] });
         }
     })
 })
@@ -517,18 +646,18 @@ app.get('/chats/:id', (req, res) => {
 app.get("/chats/:match_id/messages", (req, res) => {
     let match_id = req.params.match_id
     let query = `select idMessage, id_user, DATE_FORMAT(sent_at,'%m/%d/%Y, %H:%i') as sent_at, status, content, id_match from message where id_match = ${match_id}`
-    connection.query(query,(err, messages) => {
-        if(err){
+    connection.query(query, (err, messages) => {
+        if (err) {
             console.log(err)
-            res.status(500).send({message: "error"})
-        }else{
-            res.status(200).send({status: "ok", message: "messages found", data: messages})
+            res.status(500).send({ message: "error" })
+        } else {
+            res.status(200).send({ status: "ok", message: "messages found", data: messages })
         }
-    } )
+    })
 })
 
 //insertar un mensaje de un match
-app.put("/message", (req, res)=> {
+app.put("/message", (req, res) => {
     //id del q lo envia
     let id_user = req.body.id_user;
     let status = 0 //default pq no lo manejaremos
@@ -537,12 +666,12 @@ app.put("/message", (req, res)=> {
 
     let query = `insert into message (id_user, status, content, id_match) values ('${id_user}','${status}','${content}','${id_match}')`
 
-    connection.query(query, (err, result)=> {
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err)
-            res.status(500).send({message: "error"})
-        }else{
-            res.status(200).send({status: "ok", message: "messages inserted", data: result})
+            res.status(500).send({ message: "error" })
+        } else {
+            res.status(200).send({ status: "ok", message: "messages inserted", data: result })
         }
     })
 
@@ -551,29 +680,29 @@ app.put("/message", (req, res)=> {
 
 
 //reporte #1 -> usuarios activos OK
-app.get('/reportone',(req, res) => {
+app.get('/reportone', (req, res) => {
 
     let query = `select count(*) as total_active_users FROM user where deleted != 1 `;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             res.status(404).send('Error papito');
-        }else{
-        res.status(201).send({status:"ok",message:"reportone",data: result[0]});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportone", data: result[0] });
         }
     })
 
 });
 
 //reporte #3 -> orientaciones sexuales OK
-app.get('/reportthree',(req, res) => {
+app.get('/reportthree', (req, res) => {
 
     let query = `select n.name, u.id_sexual_orientation, (count(u.id_sexual_orientation)/(select count(*) from user)) * 100 as porcentaje from user u inner join mydb.sexual_orientation n on n.id_sexual_orientation = u.id_sexual_orientation GROUP BY id_sexual_orientation ORDER BY PORCENTAJE DESC`
-        connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err)
             res.status(404).send('Error papito');
-        }else{
-            res.status(201).send({status:"ok",message:"reportthree",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportthree", data: result });
         }
 
     })
@@ -581,14 +710,14 @@ app.get('/reportthree',(req, res) => {
 });
 
 //reporte #6
-app.get('/reportsix',(req, res) => {
+app.get('/reportsix', (req, res) => {
 
     let query = `select gender, (count(gender)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY gender order by gender desc`;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportsix",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportsix", data: result });
         }
 
     })
@@ -596,14 +725,14 @@ app.get('/reportsix',(req, res) => {
 });
 
 //reporte #7 -> cantidad total de matches hechos en la app OK
-app.get('/reportseven',(req, res) => {
+app.get('/reportseven', (req, res) => {
 
     let query = `select count(*) as total_matches from mydb.match `;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportseven",data: result[0]});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportseven", data: result[0] });
         }
 
     })
@@ -611,14 +740,14 @@ app.get('/reportseven',(req, res) => {
 });
 
 //reporte #8 lista de usuarios con más interacciones OK kinda
-app.get('/reporteight',(req, res) => {
+app.get('/reporteight', (req, res) => {
 
-    let query = `select u.id, u.username, i.id_user1, count(*) as count from user u INNER JOIN interaction i on u.id= i.id_user1 GROUP BY i.id_user1 HAVING COUNT ORDER BY count DESC limit 25 `;
-    connection.query(query, (err, result) =>{
-        if(err){
+    let query = `select u.id, u.email, u.username, i.id_user1, count(*) as count from user u INNER JOIN interaction i on u.id= i.id_user1 GROUP BY i.id_user1 HAVING COUNT ORDER BY count DESC limit 25 `;
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reporteight",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reporteight", data: result });
         }
 
     })
@@ -626,14 +755,14 @@ app.get('/reporteight',(req, res) => {
 });
 
 //reporte #9 usuarios que más envian mensajes OK
-app.get('/reportnine',(req, res) => {
+app.get('/reportnine', (req, res) => {
 
-    let query = `SELECT u.id, u.username, count(*) as count FROM user u INNER JOIN message i on u.id= i.id_user GROUP BY (u.id) ORDER BY count  DESC limit 25`    
-    connection.query(query, (err, result) =>{
-        if(err){
+    let query = `SELECT u.id, u.username, count(*) as count FROM user u INNER JOIN message i on u.id= i.id_user GROUP BY (u.id) ORDER BY count  DESC limit 25`
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportnine",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportnine", data: result });
         }
 
     })
@@ -641,14 +770,14 @@ app.get('/reportnine',(req, res) => {
 });
 
 //reporte edad OK
-app.get('/reportedad',(req, res) => {
+app.get('/reportedad', (req, res) => {
 
     let query = `select avg( Year(now()) - Year(birthdate) ) as edad_promedio from user`;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportedad",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportedad", data: result });
         }
 
     })
@@ -656,14 +785,14 @@ app.get('/reportedad',(req, res) => {
 });
 
 //reporte signo OK
-app.get('/reportsigno',(req, res) => {
+app.get('/reportsigno', (req, res) => {
 
     let query = `SELECT zodiac_sign, (count(zodiac_sign)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY zodiac_sign order by cantidad desc`;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportsigno",data: result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportsigno", data: result });
         }
 
     })
@@ -671,20 +800,35 @@ app.get('/reportsigno',(req, res) => {
 });
 
 //reporte Estados OK
-app.get('/reportestados',(req, res) => {
+app.get('/reportestados', (req, res) => {
 
     let query = `SELECT location, (count(location)/(select count(*) from user)) * 100 as cantidad FROM user GROUP BY location having cantidad >0 ORDER BY cantidad DESC limit 25`;
-    connection.query(query, (err, result) =>{
-        if(err){
+    connection.query(query, (err, result) => {
+        if (err) {
             console.log(err);
-        }else{
-            res.status(201).send({status:"ok",message:"reportestados",data:result});
+        } else {
+            res.status(201).send({ status: "ok", message: "reportestados", data: result });
         }
 
     })
 
 });
 
+
+//reporte mes de registro OK
+app.get('/report_active_month', (req, res) => {
+
+    let query = ` select MONTH(u.created_at) as mounth, count(*) as count FROM user u group by mounth HAVING COUNT(*)>0 ORDER BY mounth DESC;`
+    connection.query(query, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.status(201).send({ status: "ok", message: "reportestados", data: result });
+        }
+
+    })
+
+});
 
 
 app.listen(3000, (req, res) => {
