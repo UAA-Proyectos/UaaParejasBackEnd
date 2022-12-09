@@ -1,17 +1,21 @@
 // 1 - Invocamos a Express
 const express = require('express');
 const app = express();
+const path = require('path');
+
+
+app.use(express.static(path.join(__dirname, 'docs')));
 
 app.all('/*', function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "X-Requested-With");
     res.header('Content-type: text/html; charset=utf-8');
+    res.header("Access-Control-Allow-Private-Network", "true");
     next();
 });
 
-const multer = require('multer');
-const path = require('path');
 
+const multer = require('multer');
 //2 - Para poder capturar los datos del formulario (sin urlencoded nos devuelve "undefined")
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());//además le decimos a express que vamos a usar json
@@ -39,17 +43,8 @@ app.use(session({
 }));
 
 
-// 8 - Invocamos a la conexion de la DB
 const connection = require('./database/db');
 
-//9 - establecemos las rutas
-app.get('/login', (req, res) => {
-    res.render('login');
-});
-
-app.get('/register', (req, res) => {
-    res.render('register');
-})
 
 //10 - Método para la REGISTRACIÓN
 app.post('/register', async (req, res) => {
@@ -131,23 +126,6 @@ app.post('/auth', async (req, res) => {
     }
 });
 
-//12 - Método para controlar que está auth en todas las páginas
-app.get('/', (req, res) => {
-    if (req.session.loggedin) {
-        res.render('index', {
-            login: true,
-            name: req.session.username
-        });
-    } else {
-        res.render('index', {
-            login: false,
-            name: 'Debe iniciar sesión',
-        });
-    }
-    res.end();
-});
-
-
 //función para limpiar la caché luego del logout
 app.use(function (req, res, next) {
     if (!req.user)
@@ -168,6 +146,7 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const { ok, match } = require('assert');
 const { profile } = require('console');
+const { query } = require('express');
 
 // const app = express();
 
@@ -331,11 +310,19 @@ app.post('/file', upload.single('file'), (req, res, next) => {
 
     console.log(filesImg.path);
 
+
+
     connection.query(`INSERT INTO photo set id_user = ${userId}, path= "http://localhost:3000/${filesImg.path.replace("\\", "/")}"`, (err, result) => {
         if (err) {
             res.status(500).send({ error: "Internal server error", res: err });
         }
         else {
+            let query = `DELETE FROM PHOTO WHERE path ='http://localhost:3000/uploads/profile.png' and id_user = ${userId}`
+            connection.query(query, (err, res) => {
+                if (err) {
+                    console.log(err)
+                }
+            })
             res.status(200).send({ status: "ok", message: "photo uploaded", data: result });
         }
     });
@@ -390,13 +377,14 @@ app.put('/changeinteraction/:id', (req, res) => {
     let user2 = req.body.user2;//12
     let newStatus = req.body.newStatus;
     let auxstat;
-    let query = `select idInteraction,idStatus from interaction where (id_user1 = ${user2} and id_user2 = ${user1}) or (id_user1 = ${user1} and id_user2 = ${user2});`;
     if (user1 > user2) {
         let aux = user1;
         user1 = user2;
         user2 = aux;
         isuser1 = false;
     }
+    let query = `select idInteraction,idStatus from interaction where (id_user1 = ${user2} and id_user2 = ${user1}) or (id_user1 = ${user1} and id_user2 = ${user2});`;
+    
     connection.query(query, (error, result) => {
 
         if (result.length == 0) {
@@ -476,9 +464,9 @@ app.get('/possible_match/:userId', (req, res) => {
             let show_me = user[0]?.show_me ?? 0;
             let users = [];
             if (show_me == 2)
-                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId} ))  AND id NOT IN (select id_user2 from interaction where id_user1 = ${userId} or id_user2 = ${userId} )  limit 1`;
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId} ))  AND id NOT IN (select id_user2 from interaction where id_user1 = ${userId} or id_user2 = ${userId} ) and id != ${userId} limit 1`;
             else
-                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId}))  AND id NOT IN (select id_user2 from interaction where (id_user1 = ${userId} or id_user2 = ${userId})) and gender = ${show_me} limit 1 `;
+                query = `select id from user where id NOT IN (select id_user1 from interaction where (id_user1 = ${userId} or id_user2 = ${userId}))  AND id NOT IN (select id_user2 from interaction where (id_user1 = ${userId} or id_user2 = ${userId})) and gender = ${show_me} and id != ${userId} limit 1 `;
 
             connection.query(query, (err, oneUser) => {
                 if (err)
@@ -516,64 +504,78 @@ app.get('/possible_match/:userId', (req, res) => {
                     });
                 } else {
                     //si está vaciooo...
+                    console.log("si está vaciooo...")
                     let user_kk = null
                     query = `select * from interaction where id_user1 = ${userId} or id_user2 = ${userId}; `
                     connection.query(query, (err, ress) => {
                         if (ress.length > 0) {
                             for (let i = 0; i < ress.length; i++) {
-                                if (ress[i].id_user1 != userId && (ress[i].idStatus == 1 || ress[i].idStatus == 2) && ress[i].idStatus != 7) {
-                                    user_kk = ress[i].id_user1;
-                                } else if (ress[i].id_user2 != userId && (ress[i].idStatus == 4 || ress[i].idStatus == 5) && ress[i].idStatus != 7) {
-                                    user_kk = ress[i].id_user2
+                                console.log(ress[i])
+                                if (ress[i].id_user1 == userId && ress[i].id_user2 == userId) {
+                                    console.log(ress[i].id_user1 == userId && ress[i].id_user2 == userId, "is same id")
+                                    user_kk = null
                                 }
-                            }
-                            console.log("user llll", user_kk)
-
-                            if (user_kk != null) {
-                                query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${user_kk}`;
-
-                                connection.query(query, (err, user) => {
-                                    if (err) {
-                                        console.log(err, 'errs');
-                                    }
-                                    else if (user.length > 0) {
-                                        console.log(user)
-                                        query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${user_kk}`;
-                                        connection.query(query, (err, interest) => {
-                                            if (!err) {
-                                                query = `select * from photo where id_user = ${user_kk}`
-                                                connection.query(query, (err, photos) => {
-                                                    if (err) {
-                                                        res.status(500).send({ error: err })
-                                                    }
-                                                    else {
-                                                        user = user[0]
-                                                        res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
-                                                    }
-                                                })
-                                            } else {
-                                                res.status(500).send({ error: err })
-                                            }
-                                        })
-
+                                else {
+                                    if (ress[i].id_user1 == userId && !(ress[i].idStatus == 1 || ress[i].idStatus == 2) && ress[i].idStatus != 7) {
+                                        user_kk = ress[i].id_user2;
+                                        break
                                     }
                                     else {
-                                        res.status(400).send('Data not found');
+                                        if (ress[i].id_user2 == userId && !(ress[i].idStatus == 4 || ress[i].idStatus == 5) && ress[i].idStatus != 7) {
+                                            user_kk = ress[i].id_user1
+                                            break 
+                                        }
                                     }
-                                });
-                            } else {
-                                res.status(200).send({ status: "ok", message: "1 User data" });
+                                }
                             }
-                        } else if (err) {
-                            res.status(500).send({ status: "error", error: err });
-                        } else {
-                            res.status(200).send({ status: "ok", message: "1 User data" });
-                        }
-                    })
-                }
-            })
 
+                        console.log("user llll", user_kk)
+
+                        if (user_kk != null && user_kk != userId) {
+                            query = `select u.id, DATE_FORMAT(birthdate,'%m/%d/%Y') as birthdate, u.created_at, u.description, u.zodiac_sign, u.username, u.email, u.location, u.id_sexual_orientation from user u where u.id = ${user_kk}`;
+
+                            connection.query(query, (err, user) => {
+                                if (err) {
+                                    console.log(err, 'errs');
+                                }
+                                else if (user.length > 0) {
+                                    console.log(user)
+                                    query = `select id, name from interest inner join user_interest on interest.id = user_interest.id_interest AND user_interest.id_user =${user_kk}`;
+                                    connection.query(query, (err, interest) => {
+                                        if (!err) {
+                                            query = `select * from photo where id_user = ${user_kk}`
+                                            connection.query(query, (err, photos) => {
+                                                if (err) {
+                                                    res.status(500).send({ error: err })
+                                                }
+                                                else {
+                                                    user = user[0]
+                                                    res.status(200).send({ status: "ok", message: "1 User data", user_profile: { user, interest, photos } });
+                                                }
+                                            })
+                                        } else {
+                                            res.status(500).send({ error: err })
+                                        }
+                                    })
+
+                                }
+                                else {
+                                    res.status(400).send('Data not found');
+                                }
+                            });
+                        } else {
+                            res.status(200).send({ status: "ok", message: "1 User data", user_profile: null });
+                        }
+                    } else if (err) {
+                        res.status(500).send({ status: "error", error: err });
+                    } else {
+                        res.status(200).send({ status: "ok", message: "1 User data", user_profile: null });
+                    }
+                })
         }
+    })
+
+}
     });
 });
 
